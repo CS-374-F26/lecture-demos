@@ -1,0 +1,46 @@
+A file is just a place to store data.
+
+Many types:
+- "Regular files"
+- Directories
+- Special files
+- - Character special files
+- - Block special files
+- Symbolic links
+
+Every file has an inode (index node).
+
+Every inode has an inode number (identifier). Also, inside an inode, there's:
+- Hard link reference count
+- Set of permissions
+- Owning user
+- Owning group
+- A content pointer
+
+Paths in a file system are not actually files.
+
+For example, if ls displays a.txt, then a.txt is a file path, but it's not
+a file. a.txt is, most likely, a hard link.
+
+A hard link is a string of characters (a file path) that references
+an inode.
+
+Sometimes, more than one hard link can reference the same inode (file).
+
+
+
+
+
+When a process (running instance of a program) opens a file
+(open(), fopen(), ...), it creates a file descriptor within its own
+(process-local) file descriptor table.
+
+A file descriptor is an integer that refers to an open handle on a file.
+
+Specifically, a file descriptor refers to an open file description.
+File descriptions are stored centrally by the operating system.
+A file description contains a reference to the inode, but also some other
+runtime information about the handle on the open file.
+
+A very important thing that is stored inside a file description is
+the current file offset.
