@@ -44,3 +44,12 @@ runtime information about the handle on the open file.
 
 A very important thing that is stored inside a file description is
 the current file offset.
+
+
+
+Every process has a umask. This is a sequence of permission bits,
+usually expressed as a sequence of 3-4 octal values, representing
+permissions that are automatically SUBTRACTED from newly created
+files the moment they're created.
+
+
