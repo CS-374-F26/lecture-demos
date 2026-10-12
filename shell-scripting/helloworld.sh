@@ -120,9 +120,16 @@ foo() (
 	echo "$1"
 
 	# Similarly, $2, $0, $3, $#
+	
+	# If you want the bash function to end early, yielding exit status
+	# for the bash function:
+	return 2
+
+	echo "This line of code won't execute"
 )
 
 foo hello goodbye
+echo $? # Prints 2
 
 # In a given shell script, there are special variables
 # that you can use to reference the command-line arguments
@@ -155,9 +162,9 @@ echo "Hello, World" >> data.txt
 echo "Hello, world" | cat
 echo -e "world\nhello\ncat" | sort
 
-ls { a b }
-
 for itr in "$@"
 do
 	echo "$itr"
 done
+
+
