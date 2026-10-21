@@ -79,12 +79,12 @@ void* compute_volume_of_sphere_and_add_to_sum(void* thread_args) {
 	// Contention describes a scenario where two or more tasks
 	// are trying to access the same shared resource but must
 	// wait on one another due to access control.
-	pthread_mutex_lock(casted_arg->sum_mutex_ptr);
+	//pthread_mutex_lock(casted_arg->sum_mutex_ptr);
 	double current_sum = *(casted_arg->sum_ptr);
 	current_sum += volume;
 	*(casted_arg->sum_ptr) = current_sum;
 	// unlock out mutex
-	pthread_mutex_unlock(casted_arg->sum_mutex_ptr);
+	//pthread_mutex_unlock(casted_arg->sum_mutex_ptr);
 
 	// There are ways of solving this. I'll show you next week.
 	return NULL;
