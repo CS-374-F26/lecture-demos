@@ -1,0 +1,160 @@
+A POSIX signal is a rudimentary interprocess communication (IPC) mechanism
+on *nix systems.
+
+A POSIX signal, at its root, is just an integer that is sent to a process by
+a) another process, b) the kernel, or c) itself.
+
+The purpose of a signal is to communicate a simple intent to the target process:
+1. "Please terminate"
+2. "Please pause"
+3. "Please resume"
+4. "Die right now!"
+5. "Please change operating modes"
+6. "Please reload your system configuration file"
+
+A POSIX signal isn't just ANY number, it's one of a very small finite set
+of discrete, allowable signal numbers.
+
+Each POSIX signal number has a sort of "intended" use. However, when a process
+receives a signal, it can respond to that signal however the developer
+so chooses.
+
+In your terminal, when you do CTRL+C, this ACTUALLY sends SIGINT to all processes
+in the shell's foreground process group. SIGINT is a POSIX signal with signal
+number 2.
+
+By default, if a process does not reconfigure itself to respond to a certain
+signal number in a certain way, then it will respond to a signal according to
+the signal number's default response behavior.
+
+The default response behavior for SIGINT is to terminate.
+
+In fact, the default response behavior for MOST signal numbers is to terminate.
+There are a few exceptions:
+- SIGSTOP and SIGTSTP: These pause the target process by default.
+- SIGCONT: This resumes the target process by default
+- SIGCHLD: The default response behavior to this signal number is a no-op
+	(i.e., no operation; i.e., it does nothing; it discards the signal.)
+
+In some cases, for some signals, when the process terminates via the default
+response behavior, it will write a core dump to the system.
+
+Some common termination signals:
+SIGKILL: The nuke from orbit. It's handled internally by the kernel.
+		The kernel force-kills the target recipient. Cannot be caught.
+SIGABRT, SIGINT, SIGQUIT, SIGTERM: All communicate "please terminate" intentions,
+	but in different contexts. SIGINT is usually sent via CTRL+C in the
+	terminal. SIGABRT is usually raised (i.e., sent by a process to
+	itself), usually via the abort() function. SIGTERM is like SIGINT, but
+	usually sent programmatically. SIGQUIT is like SIGTERM but writes a
+	core dump.
+
+Some common error signals (usually sent by the kernel to a process to notify
+the process that it has done something wrong; in general, these signals
+are catchable, but in many cases, catching the error and continuing to run
+results in undefined behavior):
+SIGSEGV: Segmentation fault. This is sent by the kernel to a process that has
+	tried to access memory that it doesn't have permissions to access.
+	Usually an overflow beyond allocated pages in virtual address space.
+SIGBUS: Some other kind of bad memory access. Often, e.g., misusing mmap()
+	with memory-mapped files.
+SIGFPE (floating point error): Certain kinds of floating point errors can
+	trigger this signal.
+SIGILL: This means an illegal instruction has been issued to the CPU.
+SIGSYS: Invalid system call.
+SIGPIPE: This means that a process tried to write into a pipe or socket,
+	but the reading end is closed.
+
+Some other signals:
+SIGCHLD: (Sig child): This is sent to a process by the kernel when one of
+	the process's child processes terminates
+SIGUSR1 / SIGUSR2: These are user-defined signals.
+
+
+At a given point in time, for a given process, for a given signal number,
+the process will have a certain signal disposition for that signal number.
+
+e.g., at a given point in time, the process running ./a.out will have a
+certain signal disposition for SIGINT.
+
+A signal disposition may be one of three things:
+1. SIG_DFL: This stands for the default signal disposition.
+2. SIG_IGN: This is the ignore signal disposition.
+3. A pointer to any custom signal-handling function.
+
+When the process receives a signal, let's say SIGINT, the kernel looks up
+the process's signal disposition for that signal (SIGINT).
+
+If the disposition is SIG_DFL, then the default response behavior for that
+signal is invoked (termination, in the case of SIGINT).
+
+If the disposition is SIG_IGN, then, for the most part, the kernel will
+drop the signal, so the process never receives it.
+
+If the disposition is a pointer to a custom signal-handling function,
+then the kernel chooses a random kernel thread running within the process
+and tells it to pause what it's doing and run the signal handler (then resume
+what it was doing prior to receiving the signal).
+
+This makes signal handling asynchronous. It can happen at any time during
+a kernel thread's execution, interrupt whatever operations happen to be
+going on at the time.
+
+To change your process's signal disposition for a given signal number, you
+call sigaction(), provided by signal.h. This cannot be done for ALL signal
+numbers, only most signal numbers. Exceptions: SIGKILL, SIGSTOP.
+
+For sa_flags in the sigaction structure, there are a few flags you should
+know about:
+1. SA_RESETHAND: This supercedes the older SA_ONESHOT. It says that the moment
+	the signal handler runs for the first time, the process's signal
+	disposition for the given signal number should automatically be restored
+	to SIG_DFL.
+2. SA_RESTART: This tells the kernel to restart any system call(s) that might
+	have been interrupted by the signal handler once the signal handler
+	is done. This doesn't work for ALL system calls. But it works for
+	many blocking system calls, like read() and write().
+3. SA_SIGINFO: Must be used if you intend to use sa_sigaction instead of
+	sa_handler.
+
+
+
+
+
+
+
+
+
+
+
+
+Traditionally, a POSIX signal is just an integer. However, in some cases,
+a signal can carry an additional payload along with it.
+
+If you use sa_sigaction instead of sa_handler, then you should initialize it
+to a function pointer to a function that accepts three arguments:
+the integer signal number, an argument of type siginfo_t*, an argument of type
+void*. Additionally, you must include SA_SIGINFO in the sa_flags field of
+your sigaction structure.
+
+A siginfo_t structure has a bunch of fields providing context about the signal.
+For example, if the signal is SIGCHLD, then the received siginfo_t structure
+will contain a field specifying the PID of the terminated child.
+
+SIGCHLD is very special. Its default response behavior is to be discarded.
+This is not the same thing as ignoring SIGCHLD. If a process ignores SIGCHLD,
+then whenever one of its children terminates, the kernel will automatically
+clean up the terminated child process, and it will never become a zombie.
+In such a case, the parent MUST NOT call wait() or waitpid(). This is not
+quite as powerful as pthread_detach in the context of kernel threads, because
+it's only configurable on a process-wide basis.
+
+SIGCHLD can also be caught with a custom signal handler. In such a case, when
+a child process terminates, and the kernel sends SIGCHLD to the parent, the
+parent's SIGCHLD handler will execute. However, the kernel does NOT automatically
+clean up the child process / zombie. It is STILL the parent's responsibility
+to clean up the zombie child using wait() or waitpid().
+
+Importantly, wait() and waitpid() are reentrant. You CAN call them directly
+from within your SIGCHLD handler.
+
